@@ -118,6 +118,7 @@ found:
     // loader will initialize these:
     p->vma_brk = NULL;
     p->in_uaccess = 0;
+    p->uaccess_mm_locked = 0;
 
     // prepare trapframe and the first return context.
     p->trapframe = (struct trapframe *)PA_TO_KVA(tf);
@@ -156,6 +157,7 @@ static void freeproc(struct proc *p) {
     p->killed     = 0;
     p->parent     = NULL;
     p->in_uaccess = 0;
+    p->uaccess_mm_locked = 0;
 
     acquire(&p->mm->lock);
     mm_free(p->mm);

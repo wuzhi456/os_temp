@@ -10,6 +10,7 @@
 
 static int64 kp_print_lock = 0;
 extern volatile int panicked;
+static const int UACCESS_FAULT_SIGKILL = -9;
 
 struct spinlock tickslock;
 uint64 ticks;
@@ -56,17 +57,21 @@ static int handle_uaccess_fault(uint64 cause) {
     if (p == NULL || !p->in_uaccess)
         return 0;
 
-    p->in_uaccess = 0;
-    w_sstatus(r_sstatus() & ~SSTATUS_SUM);
-
+    struct mm *mm = NULL;
+    int release_mm_lock = 0;
     acquire(&p->lock);
-    struct mm *mm = p->mm;
+    p->in_uaccess = 0;
+    mm = p->mm;
+    release_mm_lock = p->uaccess_mm_locked;
+    p->uaccess_mm_locked = 0;
     release(&p->lock);
 
-    if (mm && holding(&mm->lock))
+    w_sstatus(r_sstatus() & ~SSTATUS_SUM);
+
+    if (release_mm_lock && mm)
         release(&mm->lock);
 
-    exit(-9);
+    exit(UACCESS_FAULT_SIGKILL);
     panic_never_reach();
 }
 

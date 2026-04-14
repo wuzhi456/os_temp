@@ -4,38 +4,44 @@
 #include "proc.h"
 #include "string.h"
 
-static int access_ok(struct mm* mm, uint64 addr, uint64 len) {
-    (void)mm;
+static int access_ok(uint64 addr, uint64 len) {
     if (len == 0)
         return 1;
     if (addr > MAX_USERVA)
         return 0;
-    if (len - 1 > MAX_USERVA - addr)
+    uint64 end_exclusive;
+    if (__builtin_add_overflow(addr, len, &end_exclusive))
+        return 0;
+    if (end_exclusive - 1 > MAX_USERVA)
         return 0;
     return 1;
 } 
 
-static void begin_user_access() {
+static void begin_user_access(struct mm *mm) {
     struct proc *p = curr_proc();
-    if (p)
+    if (p) {
         p->in_uaccess = 1;
+        p->uaccess_mm_locked = mm && holding(&mm->lock);
+    }
     w_sstatus(r_sstatus() | SSTATUS_SUM);
 }
 
 static void end_user_access() {
     w_sstatus(r_sstatus() & ~SSTATUS_SUM);
     struct proc *p = curr_proc();
-    if (p)
+    if (p) {
         p->in_uaccess = 0;
+        p->uaccess_mm_locked = 0;
+    }
 }
 
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.
 // Return 0 on success, -1 on error.
 int copy_to_user(struct mm *mm, uint64 __user dstva, char *src, uint64 len) {
-    if (!access_ok(mm, dstva, len))
+    if (!access_ok(dstva, len))
         return -EINVAL;
-    begin_user_access();
+    begin_user_access(mm);
     memmove((void *)dstva, src, len);
     end_user_access();
     return 0;
@@ -45,9 +51,9 @@ int copy_to_user(struct mm *mm, uint64 __user dstva, char *src, uint64 len) {
 // Copy len bytes to dst from virtual address srcva in a given page table.
 // Return 0 on success, -1 on error.
 int copy_from_user(struct mm *mm, char *dst, uint64 __user srcva, uint64 len) {
-    if (!access_ok(mm, srcva, len))
+    if (!access_ok(srcva, len))
         return -EINVAL;
-    begin_user_access();
+    begin_user_access(mm);
     memmove(dst, (void *)srcva, len);
     end_user_access();
     return 0;
