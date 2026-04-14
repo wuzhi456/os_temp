@@ -77,8 +77,8 @@ static int handle_uaccess_fault(uint64 cause) {
 
     acquire(&p->lock);
     p->exit_code = UACCESS_FAULT_SIGKILL;
+    p->killed    = 1;
     release(&p->lock);
-    setkilled(p);
     return 1;
 }
 
