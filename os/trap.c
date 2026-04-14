@@ -64,6 +64,8 @@ static int handle_uaccess_fault(uint64 cause) {
     mm = p->mm;
     release_mm_lock = p->uaccess_mm_locked;
     p->uaccess_mm_locked = 0;
+    p->exit_code = UACCESS_FAULT_SIGKILL;
+    p->killed    = 1;
     release(&p->lock);
 
     w_sstatus(r_sstatus() & ~SSTATUS_SUM);
@@ -75,10 +77,6 @@ static int handle_uaccess_fault(uint64 cause) {
         mycpu()->interrupt_on = interrupt_on;
     }
 
-    acquire(&p->lock);
-    p->exit_code = UACCESS_FAULT_SIGKILL;
-    p->killed    = 1;
-    release(&p->lock);
     return 1;
 }
 
