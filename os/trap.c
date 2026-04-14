@@ -68,8 +68,10 @@ static int handle_uaccess_fault(uint64 cause) {
 
     w_sstatus(r_sstatus() & ~SSTATUS_SUM);
 
-    if (release_mm_lock && mm)
+    if (release_mm_lock && mm) {
+        mycpu()->interrupt_on = 0;
         release(&mm->lock);
+    }
 
     exit(UACCESS_FAULT_SIGKILL);
     panic_never_reach();
