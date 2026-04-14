@@ -64,20 +64,18 @@ static int handle_uaccess_fault(uint64 cause) {
     mm = p->mm;
     release_mm_lock = p->uaccess_mm_locked;
     p->uaccess_mm_locked = 0;
-    p->exit_code = UACCESS_FAULT_SIGKILL;
-    p->killed    = 1;
     release(&p->lock);
 
     w_sstatus(r_sstatus() & ~SSTATUS_SUM);
 
     if (release_mm_lock && mm) {
-        int interrupt_on = mycpu()->interrupt_on;
         mycpu()->interrupt_on = 0;
         release(&mm->lock);
-        mycpu()->interrupt_on = interrupt_on;
     }
 
-    return 1;
+    mycpu()->inkernel_trap--;
+    exit(UACCESS_FAULT_SIGKILL);
+    panic_never_reach();
 }
 
 void kernel_trap(struct ktrapframe *ktf) {
