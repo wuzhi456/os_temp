@@ -120,7 +120,7 @@ void mm_copy_kpgt(struct mm *mm) {
     for (uint64 i = 0x100; i < 512; i++) {
         pte_t *kpte = (pte_t *)&kernel_pagetable[i];
         pte_t *upte = (pte_t *)&mm->pgt[i];
-        // Assignment 2: Your code here
+        *upte = *kpte;
     }
 }
 

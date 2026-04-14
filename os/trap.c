@@ -47,6 +47,29 @@ static int handle_intr(void) {
     }
 }
 
+static int handle_uaccess_fault(uint64 cause) {
+    if (cause != LoadPageFault && cause != StorePageFault)
+        return 0;
+    if (r_stval() > MAX_USERVA)
+        return 0;
+    struct proc *p = curr_proc();
+    if (p == NULL || !p->in_uaccess)
+        return 0;
+
+    p->in_uaccess = 0;
+    w_sstatus(r_sstatus() & ~SSTATUS_SUM);
+
+    acquire(&p->lock);
+    struct mm *mm = p->mm;
+    release(&p->lock);
+
+    if (mm && holding(&mm->lock))
+        release(&mm->lock);
+
+    exit(-9);
+    panic_never_reach();
+}
+
 void kernel_trap(struct ktrapframe *ktf) {
     assert(!intr_get());
 
@@ -74,6 +97,8 @@ void kernel_trap(struct ktrapframe *ktf) {
             goto kernel_panic;
         }
     } else {
+        if (handle_uaccess_fault(exception_code))
+            return;
         // kernel exception, unexpected.
         goto kernel_panic;
     }

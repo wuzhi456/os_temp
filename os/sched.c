@@ -53,6 +53,7 @@ static int all_dead() {
 void scheduler() {
     struct proc *p;
     struct cpu *c = mycpu();
+    c->sched_context.satp = MAKE_SATP(KVA_TO_PA(kernel_pagetable));
 
     // We only get here once.
     // After each cpu boots, it calls scheduler().

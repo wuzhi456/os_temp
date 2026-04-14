@@ -68,9 +68,6 @@ uservec:
         csrr t1, sepc
         sd t1, 24(a0)
 
-        # fetch the kernel page table address, from p->trapframe->kernel_satp.
-        ld t1, 0(a0)
-
         # initialize kernel stack pointer, from p->trapframe->kernel_sp
         ld sp, 8(a0)
 
@@ -80,11 +77,7 @@ uservec:
         # make tp hold the current cpuid, from p->trapframe->kernel_hartid
         ld tp, 32(a0)
 
-        # switch to the kernel page table, cannot dereference from a0 anymore
-        csrw satp, t1
-        sfence.vma zero, zero
-
-        # jump to usertrap(), under the kernel page table
+        # jump to usertrap(), while retaining the current process page table
         jr t0
 
 .globl userret

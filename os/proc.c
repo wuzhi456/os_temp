@@ -117,6 +117,7 @@ found:
 
     // loader will initialize these:
     p->vma_brk = NULL;
+    p->in_uaccess = 0;
 
     // prepare trapframe and the first return context.
     p->trapframe = (struct trapframe *)PA_TO_KVA(tf);
@@ -125,6 +126,7 @@ found:
     memset((void *)p->trapframe, 0, PGSIZE);
     p->context.ra = (uint64)first_sched_ret;
     p->context.sp = p->kstack + KERNEL_STACK_SIZE;
+    p->context.satp = MAKE_SATP(KVA_TO_PA(p->mm->pgt));
 
     assert(holding(&p->lock));
 
@@ -153,6 +155,7 @@ static void freeproc(struct proc *p) {
     p->sleep_chan = NULL;
     p->killed     = 0;
     p->parent     = NULL;
+    p->in_uaccess = 0;
 
     acquire(&p->mm->lock);
     mm_free(p->mm);
