@@ -69,12 +69,17 @@ static int handle_uaccess_fault(uint64 cause) {
     w_sstatus(r_sstatus() & ~SSTATUS_SUM);
 
     if (release_mm_lock && mm) {
+        int interrupt_on = mycpu()->interrupt_on;
         mycpu()->interrupt_on = 0;
         release(&mm->lock);
+        mycpu()->interrupt_on = interrupt_on;
     }
 
-    exit(UACCESS_FAULT_SIGKILL);
-    panic_never_reach();
+    acquire(&p->lock);
+    p->exit_code = UACCESS_FAULT_SIGKILL;
+    release(&p->lock);
+    setkilled(p);
+    return 1;
 }
 
 void kernel_trap(struct ktrapframe *ktf) {
@@ -105,11 +110,12 @@ void kernel_trap(struct ktrapframe *ktf) {
         }
     } else {
         if (handle_uaccess_fault(exception_code))
-            return;
+            goto kernel_trap_done;
         // kernel exception, unexpected.
         goto kernel_panic;
     }
 
+kernel_trap_done:
     assert(!intr_get());
     assert(mycpu()->inkernel_trap == 1);
 
